@@ -1,0 +1,15 @@
+Lotka-Volterra equations
+
+    dx/dt = x(\alpha - \beta y)
+    dy/dt = -y(\gamma - \delta x)
+
+    x = # prey
+    y = # predators
+
+    \alpha = prey growth rate (without predation)
+    \beta = predation rate
+    \gamma = predator death rate (without prey)
+    \delta = predator growth rate (through predation)
+
+Predator: orca whale
+Prey: seal
