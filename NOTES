@@ -1,5 +1,13 @@
 Lotka-Volterra equations
 
+    Assumptions
+
+        Prey population always has food
+        Predator food supply is only prey
+        Population growth is proportional to size
+        Environment is static
+        Predators always eat
+
     dx/dt = x(\alpha - \beta y)
     dy/dt = -y(\gamma - \delta x)
 
