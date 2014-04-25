@@ -32,18 +32,33 @@
 	(- (* lv-delta numprey numpred) (* lv-gamma numpred))
 )
 
-(defvar state (cons 5 2))
-
 (defun update-prey/pred (pair timedelta)
 	(let* (
 			(old-prey (car pair))
 			(old-pred (cdr pair))
 			(new-prey (+ old-prey (* timedelta (dprey/dt old-prey old-pred))))
-			(new-pred (+ old-pred (* timedelta (dprey/dt old-prey old-pred))))
+			(new-pred (+ old-pred (* timedelta (dpred/dt old-prey old-pred))))
 		)
 		(cons new-prey new-pred)
 	)
 )
+(defun run-simulation (&key (initial-state (cons 5 2)) (stepval (/ 1.0 10)) (times 50))
+	(do (
+			(st initial-state (update-prey/pred st stepval))
+			(acc nil (cons st acc))
+			(i 0 (+ i 1))
+		)
+		((>= i times) (reverse acc))
+	)
+)
+(defun output-gnuplot-data (&optional (states (run-simulation)))
+	(let ((i 0))
+		(dolist (x states)
+			(format t "~a ~a ~a~%" (incf i) (car x) (cdr x))
+		)
+	)
+)
+
 #|
 (let ((i 0))
 	(mapcar
@@ -54,12 +69,3 @@
 	)
 )
 |#
-(defun run-simulation (&key (initial-state (cons 5 2)) (stepval (/ 1.0 10)) (times 50))
-	(do (
-			(st initial-state (update-prey/pred st stepval))
-			(acc nil (cons st acc))
-			(i 0 (+ i 1))
-		)
-		((>= i times) (reverse acc))
-	)
-)
