@@ -21,3 +21,28 @@ Lotka-Volterra equations
 
 Predator: orca whale
 Prey: seal
+
+**Interactions**
+
+Interactions are partly based on equation, partly based on what the grid
+model makes practical.
+
+None -> None: Nothing happens.
+
+None -> Prey: Prey moves.
+
+None -> Predator: Predator moves.
+
+Prey -> None: Prey might reproduce.
+
+Prey -> Prey: Nothing happens.
+
+Prey -> Predator: Prey might be eaten. Predator might die. If prey is eaten
+predator might reproduce.
+
+Predator -> None: Predator might die.
+
+Predator -> Prey: Prey might be eaten. Predator might die. If prey is eaten
+predator might reproduce.
+
+Predator -> Predator: Predator might die.
