@@ -124,6 +124,40 @@ class event_loop
 	}
 };
 
+class mouse_drawing
+{
+	int x,y;
+	tuple<int,int,int> color;
+	public:
+	void receive_mouse_input(SDL_Event* e)
+	{
+		SDL_MouseMotionEvent mme = e->motion;
+		//most_recent_mouse_pos = make_tuple(mme.x,mme.y);
+		x = mme.x; y = mme.y;
+		color = make_tuple(random(0xFF),random(0xFF),random(0xFF));
+		//cout << mme.x << "," << mme.y << "\n";
+	}
+	void draw(SDL_Renderer* r)
+	{
+		SDL_Rect tmp = make_rect(x-16,y-16,32,32);
+		SDL_SetRenderDrawColor(r,get<0>(color),get<1>(color),get<2>(color),0xFF);
+		SDL_RenderFillRect(r,&tmp);
+	}
+};
+
+template <int r, int g, int b, int a> void clear_screen(SDL_Renderer* rend)
+{
+	SDL_Rect tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
+	SDL_SetRenderDrawColor(rend,r,g,b,a);
+	SDL_RenderFillRect(rend,&tmp);
+}
+
+//adapted from "http://stackoverflow.com/questions/11902840/binding-member-functions-in-a-variadic-fashion"
+template <class T, class R, class... Args> std::function<R(Args...)> method_closure(T& t, R(T::* f)(Args...))
+{
+	return [&t,f](Args... args){mem_fn(f)(&t,args...);};
+}
+
 // SDL initialization code adapted from wiki.libsdl.org
 int main(int argc, char* argv[])
 {
@@ -133,28 +167,11 @@ int main(int argc, char* argv[])
 		RAII_Wrapper<SDL_Window> main_window(bind(SDL_CreateWindow,"Ecology simulation",0,0,WINDOW_WIDTH,WINDOW_HEIGHT,0),SDL_DestroyWindow,"Error creating the window: ");
 		RAII_Wrapper<SDL_Renderer> main_window_renderer(bind(SDL_CreateRenderer,main_window.get(),-1,0),SDL_DestroyRenderer,"Error getting the window's renderer: ");
 		event_loop el(main_window,main_window_renderer);
+		mouse_drawing md;
 		//el.addHandler([](SDL_Event* e){cout << "Received an event of type " << e->type << ".\n";});
-		tuple<int,int> most_recent_mouse_pos;
-		tuple<int,int,int> color(0,0,0);
-		el.addHandler(SDL_MOUSEMOTION,[&](SDL_Event* e)
-		{
-			SDL_MouseMotionEvent mme = e->motion;
-			most_recent_mouse_pos = make_tuple(mme.x,mme.y);
-			color = make_tuple(random(255),random(255),random(255));
-			//cout << mme.x << "," << mme.y << "\n";
-		});
-		el.addDrawer([](SDL_Renderer* r)
-		{
-			SDL_Rect tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
-			SDL_SetRenderDrawColor(r,255,255,255,255);
-			SDL_RenderFillRect(r,&tmp);
-		});
-		el.addDrawer([&](SDL_Renderer* r)
-		{
-			SDL_Rect tmp = make_rect(get<0>(most_recent_mouse_pos)-16,get<1>(most_recent_mouse_pos)-16,32,32);
-			SDL_SetRenderDrawColor(r,get<0>(color),get<1>(color),get<2>(color),255);
-			SDL_RenderFillRect(r,&tmp);
-		});
+		el.addHandler(SDL_MOUSEMOTION,method_closure(md,&mouse_drawing::receive_mouse_input));
+		el.addDrawer(&clear_screen<0xFF,0xFF,0xFF,0xFF>);
+		el.addDrawer(method_closure(md,&mouse_drawing::draw));
 		SDL_Rect tmp;
 		tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
 		SDL_RenderSetViewport(main_window_renderer,&tmp);
