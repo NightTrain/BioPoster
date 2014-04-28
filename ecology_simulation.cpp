@@ -124,10 +124,17 @@ class event_loop
 	}
 };
 
+typedef tuple<int,int,int> RGBColor;
+
+void set_sdl_draw_color(SDL_Renderer* r, RGBColor c, int alpha = 0xFF)
+{
+	SDL_SetRenderDrawColor(r,get<0>(c),get<1>(c),get<2>(c),alpha);
+}
+
 class mouse_drawing
 {
 	int x,y;
-	tuple<int,int,int> color;
+	RGBColor color;
 	public:
 	void receive_mouse_input(SDL_Event* e)
 	{
@@ -140,23 +147,80 @@ class mouse_drawing
 	void draw(SDL_Renderer* r)
 	{
 		SDL_Rect tmp = make_rect(x-16,y-16,32,32);
-		SDL_SetRenderDrawColor(r,get<0>(color),get<1>(color),get<2>(color),0xFF);
+		set_sdl_draw_color(r,color);
 		SDL_RenderFillRect(r,&tmp);
 	}
 };
 
+void draw_sdl_rectangle(SDL_Renderer* r, int x, int y, int w, int h, RGBColor col, int alpha = 0xFF)
+{
+	SDL_Rect tmp = make_rect(x,y,w,h);
+	set_sdl_draw_color(r,col,alpha);
+	SDL_RenderFillRect(r,&tmp);
+}
+
 template <int r, int g, int b, int a> void clear_screen(SDL_Renderer* rend)
 {
-	SDL_Rect tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
-	SDL_SetRenderDrawColor(rend,r,g,b,a);
-	SDL_RenderFillRect(rend,&tmp);
+	draw_sdl_rectangle(rend,0,0,WINDOW_WIDTH,WINDOW_HEIGHT,make_tuple(r,g,b),a);
 }
 
 //adapted from "http://stackoverflow.com/questions/11902840/binding-member-functions-in-a-variadic-fashion"
-template <class T, class R, class... Args> std::function<R(Args...)> method_closure(T& t, R(T::* f)(Args...))
+template <class T, class R, class... Args> function<R(Args...)> method_closure(T& t, R(T::* f)(Args...))
 {
 	return [&t,f](Args... args){mem_fn(f)(&t,args...);};
 }
+
+template <class EnumType> void draw_cells(SDL_Renderer* renderer, map<EnumType,RGBColor> colormap, vector<vector<EnumType>> cells)
+{
+	//int total_width = cells[0].size(); //changed to be row-dependent
+	int total_height = cells.size();
+	//cout << "totaldimensions(" << total_width << "," << total_height << ")\n";
+	//double cell_width = double(WINDOW_WIDTH)/total_width;
+	double cell_height = double(WINDOW_HEIGHT)/total_height;
+	//cout << "cellsize(" << cell_width << "," << cell_height << ")\n";
+	int x=0; int y=0;
+	for(vector<EnumType> row : cells)
+	{
+		int total_width = row.size();
+		double cell_width = double(WINDOW_WIDTH)/total_width;
+		for(EnumType cell : row)
+		{
+			//cout << "cellposition(" << x << "," << y << ")\n";
+			//cout << "color(" << get<0>(colormap.at(cell)) << "," << get<1>(colormap.at(cell)) << "," << get<2>(colormap.at(cell)) << ")\n";
+			int x1 = x*cell_width;
+			int y1 = y*cell_height;
+			int x2 = (x+1)*cell_width;
+			int y2 = (y+1)*cell_height;
+			//cout << "rectangle(" << x1 << "," << y1 << "," << x2 << "," << y2 << ")\n";
+			draw_sdl_rectangle(renderer,x1,y1,x2,y2,colormap.at(cell));
+			x++;
+		}
+		x=0; y++;
+	}
+}
+
+class sample_grid_drawer
+{
+	vector<vector<int>> grid;
+	map<int,RGBColor> gridcolors;
+	public:
+	sample_grid_drawer()
+	{
+		grid.push_back(vector<int>({0,1,0}));
+		grid.push_back(vector<int>({1,2,1}));
+		grid.push_back(vector<int>({5,4,3,2,1,0}));
+		gridcolors[0] = make_tuple(0xFF,0,0);
+		gridcolors[1] = make_tuple(0,0xFF,0);
+		gridcolors[2] = make_tuple(0,0,0xFF);
+		gridcolors[3] = make_tuple(0xFF,0,0xFF);
+		gridcolors[4] = make_tuple(0,0xFF,0xFF);
+		gridcolors[5] = make_tuple(0xFF,0xFF,0);
+	}
+	void draw(SDL_Renderer* r)
+	{
+		draw_cells(r,gridcolors,grid);
+	}
+};
 
 // SDL initialization code adapted from wiki.libsdl.org
 int main(int argc, char* argv[])
@@ -167,10 +231,12 @@ int main(int argc, char* argv[])
 		RAII_Wrapper<SDL_Window> main_window(bind(SDL_CreateWindow,"Ecology simulation",0,0,WINDOW_WIDTH,WINDOW_HEIGHT,0),SDL_DestroyWindow,"Error creating the window: ");
 		RAII_Wrapper<SDL_Renderer> main_window_renderer(bind(SDL_CreateRenderer,main_window.get(),-1,0),SDL_DestroyRenderer,"Error getting the window's renderer: ");
 		event_loop el(main_window,main_window_renderer);
-		mouse_drawing md;
 		//el.addHandler([](SDL_Event* e){cout << "Received an event of type " << e->type << ".\n";});
+		mouse_drawing md;
 		el.addHandler(SDL_MOUSEMOTION,method_closure(md,&mouse_drawing::receive_mouse_input));
 		el.addDrawer(&clear_screen<0xFF,0xFF,0xFF,0xFF>);
+		sample_grid_drawer sgd;
+		el.addDrawer(method_closure(sgd,&sample_grid_drawer::draw));
 		el.addDrawer(method_closure(md,&mouse_drawing::draw));
 		SDL_Rect tmp;
 		tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
