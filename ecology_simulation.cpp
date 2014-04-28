@@ -170,7 +170,18 @@ template <class T, class R, class... Args> function<R(Args...)> method_closure(T
 	return [&t,f](Args... args){mem_fn(f)(&t,args...);};
 }
 
-template <class EnumType> void draw_cells(SDL_Renderer* renderer, map<EnumType,RGBColor> colormap, vector<vector<EnumType>> cells)
+template <class A, class B> function<B(A)> map_to_function(map<A,B>& m)
+{
+	return [&](A key)
+	{
+		typename map<A,B>::iterator it = m.find(key);
+		B retval;
+		if(it != m.end())retval = it->second;
+		return retval;
+	};
+}
+
+template <class EnumType> void draw_cells(SDL_Renderer* renderer, function<RGBColor(EnumType)> colormap, vector<vector<EnumType>> cells)
 {
 	//int total_width = cells[0].size(); //changed to be row-dependent
 	int total_height = cells.size();
@@ -192,7 +203,7 @@ template <class EnumType> void draw_cells(SDL_Renderer* renderer, map<EnumType,R
 			int x2 = (x+1)*cell_width;
 			int y2 = (y+1)*cell_height;
 			//cout << "rectangle(" << x1 << "," << y1 << "," << x2 << "," << y2 << ")\n";
-			draw_sdl_rectangle(renderer,x1,y1,x2,y2,colormap.at(cell));
+			draw_sdl_rectangle(renderer,x1,y1,x2,y2,colormap(cell));
 			x++;
 		}
 		x=0; y++;
@@ -203,6 +214,7 @@ class sample_grid_drawer
 {
 	vector<vector<int>> grid;
 	map<int,RGBColor> gridcolors;
+	function<RGBColor(int)> colorfunction;
 	public:
 	sample_grid_drawer()
 	{
@@ -215,10 +227,35 @@ class sample_grid_drawer
 		gridcolors[3] = make_tuple(0xFF,0,0xFF);
 		gridcolors[4] = make_tuple(0,0xFF,0xFF);
 		gridcolors[5] = make_tuple(0xFF,0xFF,0);
+		colorfunction = map_to_function(gridcolors);
 	}
 	void draw(SDL_Renderer* r)
 	{
-		draw_cells(r,gridcolors,grid);
+		draw_cells(r,colorfunction,grid);
+	}
+};
+
+class sample_grid_drawer2
+{
+	vector<vector<RGBColor>> grid;
+	function<RGBColor(RGBColor)> identity;
+	public:
+	sample_grid_drawer2(int numrows, int numcolumns)
+	{
+		for(int y=0;y < numcolumns;y++)
+		{
+			vector<RGBColor> tmp;
+			for(int x=0;x<numrows;x++)
+			{
+				tmp.push_back(make_tuple(random(0xFF),random(0xFF),random(0xFF)));
+			}
+			grid.push_back(tmp);
+		}
+		identity = [](RGBColor col){return col;};
+	}
+	void draw(SDL_Renderer* r)
+	{
+		draw_cells(r,identity,grid);
 	}
 };
 
@@ -235,8 +272,8 @@ int main(int argc, char* argv[])
 		mouse_drawing md;
 		el.addHandler(SDL_MOUSEMOTION,method_closure(md,&mouse_drawing::receive_mouse_input));
 		el.addDrawer(&clear_screen<0xFF,0xFF,0xFF,0xFF>);
-		sample_grid_drawer sgd;
-		el.addDrawer(method_closure(sgd,&sample_grid_drawer::draw));
+		sample_grid_drawer2 sgd(10,10);
+		el.addDrawer(method_closure(sgd,&sample_grid_drawer2::draw));
 		el.addDrawer(method_closure(md,&mouse_drawing::draw));
 		SDL_Rect tmp;
 		tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
