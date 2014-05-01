@@ -20,7 +20,7 @@ Model::Model(size_type size, float alpha, float beta, float gamma,
         // something more reasonable.
         for (size_type y = 0; y < size; ++y)
                 for (size_type x = 0; x < size; ++x) {
-                        unsigned int add = event(gen);
+                        float add = event(gen);
                         if (add < 0.25)
                                 world[y][x] = PREY;
                         else if (add < 0.5)

@@ -7,6 +7,7 @@
 #include <vector>
 #include <SDL2/SDL.h>
 #include "ecology_simulation_templates.h"
+#include "model.h"
 
 const int WINDOW_WIDTH = 640;
 const int WINDOW_HEIGHT = 480;
@@ -129,9 +130,9 @@ class event_loop
 	{
 		drawfuncs.push_back(drawer);
 	}
-	void addTimerEvent(Uint32 msInterval, function<void()> handler)
+	void addTimerEvent(Uint32 msInterval, function<void()>* handler)
 	{
-		SDL_AddTimer(msInterval,&timerFunction,reinterpret_cast<void*>(&handler));
+		SDL_AddTimer(msInterval,&timerFunction,reinterpret_cast<void*>(handler));
 	}
 };
 
@@ -270,6 +271,29 @@ class sample_grid_drawer2
 	}
 };
 
+class simulation_drawer
+{
+	Model m;
+	map<Model::Cell,RGBColor> colormap;
+	function<RGBColor(Model::Cell)> colorfn;
+	public:
+	simulation_drawer()	: m(50,1,1/5,1/5,1/25)
+	{
+		colormap[Model::NONE] = make_tuple(0xFF,0xFF,0xFF);
+		colormap[Model::PREY] = make_tuple(0,0xFF,0);
+		colormap[Model::PRED] = make_tuple(0xFF,0,0);
+		colorfn = map_to_function(colormap);
+	}
+	void timerCallback()
+	{
+		m.tick();
+	}
+	void draw(SDL_Renderer* r)
+	{
+		draw_cells(r,colorfn,m.world);
+	}
+};
+
 // SDL initialization code adapted from wiki.libsdl.org
 int main(int argc, char* argv[])
 {
@@ -281,12 +305,15 @@ int main(int argc, char* argv[])
 		event_loop el(main_window,main_window_renderer);
 		//el.addHandler([](SDL_Event* e){cout << "Received an event of type " << e->type << ".\n";});
 		mouse_drawing md;
-		el.addTimerEvent(1000,[](){ cout << "Hello, world\n";});
+		//function<void()> helloWorldCallback = [](){ cout << "Hello, world\n";};
+		//el.addTimerEvent(1000,&helloWorldCallback);
 		el.addHandler(SDL_MOUSEMOTION,method_closure(md,&mouse_drawing::receive_mouse_input));
 		el.addDrawer(&clear_screen<0xFF,0xFF,0xFF,0xFF>);
-		sample_grid_drawer2 sgd(10,10);
-		el.addDrawer(method_closure(sgd,&sample_grid_drawer2::draw));
 		el.addDrawer(method_closure(md,&mouse_drawing::draw));
+		simulation_drawer sd;
+		el.addDrawer(method_closure(sd,&simulation_drawer::draw));
+		function<void()> tickTimerCallback = method_closure(sd,&simulation_drawer::timerCallback);
+		el.addTimerEvent(100,&tickTimerCallback);
 		SDL_Rect tmp;
 		tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
 		SDL_RenderSetViewport(main_window_renderer,&tmp);
