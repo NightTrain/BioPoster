@@ -70,6 +70,13 @@ struct SDL_Rect make_rect(int x, int y, int w, int h)
 
 int random(int max) { return rand() % max; }
 
+Uint32 timerFunction(Uint32 interval, void* param)
+{
+	function<void()> fn = *reinterpret_cast<function<void()>*>(param);
+	fn();
+	return interval;
+}
+
 class event_loop
 {
 	vector<function<void(SDL_Event*)>> called_on_all_events;
@@ -121,6 +128,10 @@ class event_loop
 	void addDrawer(function<void(SDL_Renderer*)> drawer)
 	{
 		drawfuncs.push_back(drawer);
+	}
+	void addTimerEvent(Uint32 msInterval, function<void()> handler)
+	{
+		SDL_AddTimer(msInterval,&timerFunction,reinterpret_cast<void*>(&handler));
 	}
 };
 
@@ -270,6 +281,7 @@ int main(int argc, char* argv[])
 		event_loop el(main_window,main_window_renderer);
 		//el.addHandler([](SDL_Event* e){cout << "Received an event of type " << e->type << ".\n";});
 		mouse_drawing md;
+		el.addTimerEvent(1000,[](){ cout << "Hello, world\n";});
 		el.addHandler(SDL_MOUSEMOTION,method_closure(md,&mouse_drawing::receive_mouse_input));
 		el.addDrawer(&clear_screen<0xFF,0xFF,0xFF,0xFF>);
 		sample_grid_drawer2 sgd(10,10);
