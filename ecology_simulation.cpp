@@ -277,7 +277,7 @@ class simulation_drawer
 	map<Model::Cell,RGBColor> colormap;
 	function<RGBColor(Model::Cell)> colorfn;
 	public:
-	simulation_drawer()	: m(50,1,1/5,1/5,1/25)
+	simulation_drawer()	: m(50,1.0,1.0/5.0,1.0/5.0,1.0/25.0)
 	{
 		colormap[Model::NONE] = make_tuple(0xFF,0xFF,0xFF);
 		colormap[Model::PREY] = make_tuple(0,0xFF,0);
