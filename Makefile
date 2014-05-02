@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -g
-CXXFLAGS += -Wall -Wextra -pedantic -std=c++11
+CXXFLAGS += -Wall -Wextra -pedantic -std=c++0x
 LDFLAGS = -lSDL2
 OBJECTS = ecology_simulation.o model.o
 
