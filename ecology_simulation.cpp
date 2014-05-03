@@ -92,12 +92,15 @@ class event_loop
 		for(auto f : drawfuncs)f(_rend);
 		SDL_RenderPresent(_rend);
 	}
+	bool _redraw;
 	public:
+	void setRedraw() {_redraw = true;}
 	event_loop(SDL_Window* window, SDL_Renderer* renderer)
 	{
 		_wnd = window;
 		_rend = renderer;
 		_exit = false;
+		_redraw = false;
 	}
 	void run()
 	{
@@ -115,7 +118,10 @@ class event_loop
 				for(auto f : called_on_all_events)f(&event);
 				for(auto f : event_funcs[event.type])f(&event);
 			}
-			call_all_draw_funcs();
+			if(_redraw)
+			{
+				call_all_draw_funcs();
+			}
 		}
 	}
 	void addHandler(Uint32 event_type, function<void(SDL_Event*)> handler)
@@ -184,13 +190,36 @@ template <class T, class R, class... Args> function<R(Args...)> method_closure(T
 
 template <class A, class B> function<B(A)> map_to_function(map<A,B>& m)
 {
-	return [&](A key)
+	function<B(A)> mapfn = [&](A key) -> B
 	{
 		typename map<A,B>::iterator it = m.find(key);
 		B retval;
 		if(it != m.end())retval = it->second;
 		return retval;
 	};
+	return mapfn;
+}
+
+template <class EnumType> void draw_cells(SDL_Renderer* renderer, map<EnumType,RGBColor> colormap, vector<vector<EnumType>> cells)
+{
+	int total_height = cells.size();
+	double cell_height = double(WINDOW_HEIGHT)/total_height;
+	int x=0; int y=0;
+	for(vector<EnumType> row : cells)
+	{
+		int total_width = row.size();
+		double cell_width = double(WINDOW_WIDTH)/total_width;
+		for(EnumType cell : row)
+		{
+			int x1 = x*cell_width;
+			int y1 = y*cell_height;
+			int x2 = (x+1)*cell_width;
+			int y2 = (y+1)*cell_height;
+			draw_sdl_rectangle(renderer,x1,y1,x2,y2,colormap.at(cell));
+			x++;
+		}
+		x=0; y++;
+	}
 }
 
 template <class EnumType> void draw_cells(SDL_Renderer* renderer, function<RGBColor(EnumType)> colormap, vector<vector<EnumType>> cells)
@@ -275,14 +304,14 @@ class simulation_drawer
 {
 	Model m;
 	map<Model::Cell,RGBColor> colormap;
-	function<RGBColor(Model::Cell)> colorfn;
+	//function<RGBColor(Model::Cell)> colorfn;
 	public:
-	simulation_drawer()	: m(50,1.0,1.0/5.0,1.0/5.0,1.0/25.0)
+	simulation_drawer()	: m(128,1.0,1.0/5.0,1.0/5.0,1.0/25.0)
 	{
 		colormap[Model::NONE] = make_tuple(0xFF,0xFF,0xFF);
 		colormap[Model::PREY] = make_tuple(0,0xFF,0);
 		colormap[Model::PRED] = make_tuple(0xFF,0,0);
-		colorfn = map_to_function(colormap);
+		//colorfn = map_to_function(colormap);
 	}
 	void timerCallback()
 	{
@@ -290,7 +319,7 @@ class simulation_drawer
 	}
 	void draw(SDL_Renderer* r)
 	{
-		draw_cells(r,colorfn,m.world);
+		draw_cells(r,colormap,m.world);
 	}
 };
 
@@ -312,7 +341,12 @@ int main(int argc, char* argv[])
 		el.addDrawer(method_closure(md,&mouse_drawing::draw));
 		simulation_drawer sd;
 		el.addDrawer(method_closure(sd,&simulation_drawer::draw));
-		function<void()> tickTimerCallback = method_closure(sd,&simulation_drawer::timerCallback);
+		//function<void()> tickTimerCallback = method_closure(sd,&simulation_drawer::timerCallback);
+		function<void()> tickTimerCallback = [&]()
+		{
+			sd.timerCallback();
+			el.setRedraw();
+		};
 		el.addTimerEvent(100,&tickTimerCallback);
 		SDL_Rect tmp;
 		tmp = make_rect(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
