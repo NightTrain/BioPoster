@@ -5,19 +5,37 @@
 
 #include "model.h"
 
-static_assert(std::numeric_limits<Model::Row::size_type>::max()
-              >= std::numeric_limits<Model::size_type>::max() &&
-              std::numeric_limits<Model::Grid::size_type>::max()
-              >= std::numeric_limits<Model::size_type>::max(),
+using namespace std;
+
+static_assert(numeric_limits<Model::Row::size_type>::max()
+              >= numeric_limits<Model::size_type>::max() &&
+              numeric_limits<Model::Grid::size_type>::max()
+              >= numeric_limits<Model::size_type>::max(),
               "insufficient vector size type");
 
-Model::Model(size_type size, float alpha, float beta, float gamma, float delta):
+const Model::interactor Model::INTERACT[CELL_NUM][CELL_NUM] = {
+	[NONE] = {
+		[NONE] = &Model::interact_null,
+		[PREY] = &Model::interact_none_preypred,
+		[PRED] = &Model::interact_none_preypred
+	},
+	[PREY] = {
+		[NONE] = &Model::interact_prey_none,
+		[PREY] = &Model::interact_null,
+		[PRED] = &Model::interact_prey_pred
+	},
+	[PRED] = {
+		[NONE] = &Model::interact_pred_nonepred,
+		[PREY] = &Model::interact_pred_prey,
+		[PRED] = &Model::interact_pred_nonepred
+	}
+};
+
+Model::Model(size_type size, float alpha, float beta, float gamma,
+             float delta):
         world(size, Row(size, NONE)),
-        interact{{&Model::interact_null, &Model::interact_none, &Model::interact_none},
-        {&Model::interact_prey_none, &Model::interact_null, &Model::interact_prey_pred},
-        {&Model::interact_pred_both, &Model::interact_pred_prey, &Model::interact_pred_both}},
         alpha(alpha), beta(beta), gamma(gamma), delta(delta),
-        gen(std::time(NULL)), neighbor(0, 7), event(0.0, 1.0)
+        gen(time(nullptr)), neighbor(0, 7), event(0.0, 1.0)
 {
         // Randomly add prey and predators. TODO: Replace this with
         // something more reasonable.
@@ -34,8 +52,8 @@ Model::Model(size_type size, float alpha, float beta, float gamma, float delta):
 Model::Cell &Model::choose_neighbor(size_type x, size_type y)
 {
         unsigned int t = neighbor(gen);
-        size_type nx = (size_type)(x + std::round(std::cos(t * M_PI / 4.0))) % world.size();
-        size_type ny = (size_type)(y + std::round(std::sin(t * M_PI / 4.0))) % world.size();
+        size_type nx = (size_type)(x + round(cos(t * M_PI / 4.0))) % world.size();
+        size_type ny = (size_type)(y + round(sin(t * M_PI / 4.0))) % world.size();
         return world[ny][nx];
 }
 
@@ -46,57 +64,50 @@ void Model::tick()
         for (size_type y = 0; y < world.size(); ++y)
                 for (size_type x = 0; x < world.size(); ++x) {
                         Cell &current = world[y][x], &target = choose_neighbor(x, y);
-                        (this->*interact[current][target])(current, target);
+                        (this->*INTERACT[current][target])(current, target);
                 }
 }
 
 // Two cells interact according to the rules in the NOTES file. Every cell
 // in the world is the current cell once and only once per tick.
 
-// Nothing happens . . .
-void Model::interact_null(Cell &current, Cell &target)
+void Model::interact_null(Cell &current, Cell &neighbor)
 {
-        (void)current, (void)target;
+        (void)current, (void)neighbor;
 }
 
-// Prey/predator moves.
-void Model::interact_none(Cell &current, Cell &target)
+void Model::interact_none_preypred(Cell &current, Cell &neighbor)
 {
-        std::swap(current, target);
+        swap(current, neighbor);
 }
 
-// Prey might reproduce.
-void Model::interact_prey_none(Cell &current, Cell &target)
+void Model::interact_prey_none(Cell &current, Cell &neighbor)
 {
         (void)current;
         if (event(gen) < alpha)
-                target = PREY;
+                neighbor = PREY;
 }
 
-// Prey might be eaten. Predator might die. If prey is eaten, predator
-// might reproduce.
-void Model::interact_prey_pred(Cell &current, Cell &target)
+void Model::interact_prey_pred(Cell &current, Cell &neighbor)
 {
-        if (event(gen) < beta) {
+        if (event(gen) < beta)
+        {
                 current = NONE;
                 if (event(gen) < delta)
                         current = PRED;
         }
         if (event(gen) < gamma)
-                target = NONE;
+                neighbor = NONE;
 }
 
-// Predator might die.
-void Model::interact_pred_both(Cell &current, Cell &target)
+void Model::interact_pred_nonepred(Cell &current, Cell &neighbor)
 {
-        (void)target;
+        (void)neighbor;
         if (event(gen) < gamma)
                 current = NONE;
 }
 
-// Prey might be eaten. Predator might die. If prey is eaten, predator
-// might reproduce.
-void Model::interact_pred_prey(Cell &current, Cell &target)
+void Model::interact_pred_prey(Cell &current, Cell &neighbor)
 {
-        interact_prey_pred(target, current);
+        interact_prey_pred(neighbor, current);
 }

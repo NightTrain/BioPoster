@@ -6,7 +6,7 @@
 
 class Model
 {
-	public:
+public:
 	enum Cell
 	{
 		NONE,
@@ -21,18 +21,19 @@ class Model
 
 	Grid world;
 
-	Model(size_type size, float alpha, float beta, float gamma, float delta);
+	Model(size_type side_length, float alpha, float beta, float gamma, float delta);
 	void tick();
-	private:
-	typedef void(Model::*interactor)(Cell&, Cell&);
+private:
+	typedef void (Model::*interactor)(Cell&, Cell&);
 
-	interactor interact[CELL_NUM][CELL_NUM];
+	//
+	static const interactor INTERACT[CELL_NUM][CELL_NUM];
 
 	// alpha = natural prey growth rate
 	// beta = predation rate
 	// gamma = natural predator death rate
 	// delta = predator growth rate
-	const float alpha, beta, gamma, delta;
+	float alpha, beta, gamma, delta;
 
 	std::default_random_engine gen;
 	std::uniform_int_distribution<unsigned int> neighbor;
@@ -40,12 +41,20 @@ class Model
 
 	Cell &choose_neighbor(size_type x, size_type y);
 
-	void interact_null(Cell &current, Cell &target);
-	void interact_none(Cell &current, Cell &target);
-	void interact_prey_none(Cell &current, Cell &target);
-	void interact_prey_pred(Cell &current, Cell &target);
-	void interact_pred_both(Cell &current, Cell &target);
-	void interact_pred_prey(Cell &current, Cell &target);
+	// Nothing happens . . .
+	void interact_null(Cell &current, Cell &neighbor);
+	// Prey/predator moves.
+	void interact_none_preypred(Cell &current, Cell &neighbor);
+	// Prey might reproduce.
+	void interact_prey_none(Cell &current, Cell &neighbor);
+	// Prey might be eaten. Predator might die. If prey is eaten, predator
+	// might reproduce.
+	void interact_prey_pred(Cell &current, Cell &neighbor);
+	// Predator might die.
+	void interact_pred_nonepred(Cell &current, Cell &neighbor);
+	// Prey might be eaten. Predator might die. If prey is eaten, predator
+	// might reproduce.
+	void interact_pred_prey(Cell &current, Cell &neighbor);
 };
 
 #endif /* MODEL_H */
