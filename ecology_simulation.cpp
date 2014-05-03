@@ -157,10 +157,8 @@ class mouse_drawing
 	void receive_mouse_input(SDL_Event* e)
 	{
 		SDL_MouseMotionEvent mme = e->motion;
-		//most_recent_mouse_pos = make_tuple(mme.x,mme.y);
 		x = mme.x; y = mme.y;
 		color = make_tuple(random(0xFF),random(0xFF),random(0xFF));
-		//cout << mme.x << "," << mme.y << "\n";
 	}
 	void draw(SDL_Renderer* r)
 	{
@@ -224,12 +222,8 @@ template <class EnumType> void draw_cells(SDL_Renderer* renderer, map<EnumType,R
 
 template <class EnumType> void draw_cells(SDL_Renderer* renderer, function<RGBColor(EnumType)> colormap, vector<vector<EnumType>> cells)
 {
-	//int total_width = cells[0].size(); //changed to be row-dependent
 	int total_height = cells.size();
-	//cout << "totaldimensions(" << total_width << "," << total_height << ")\n";
-	//double cell_width = double(WINDOW_WIDTH)/total_width;
 	double cell_height = double(WINDOW_HEIGHT)/total_height;
-	//cout << "cellsize(" << cell_width << "," << cell_height << ")\n";
 	int x=0; int y=0;
 	for(vector<EnumType> row : cells)
 	{
@@ -237,13 +231,10 @@ template <class EnumType> void draw_cells(SDL_Renderer* renderer, function<RGBCo
 		double cell_width = double(WINDOW_WIDTH)/total_width;
 		for(EnumType cell : row)
 		{
-			//cout << "cellposition(" << x << "," << y << ")\n";
-			//cout << "color(" << get<0>(colormap.at(cell)) << "," << get<1>(colormap.at(cell)) << "," << get<2>(colormap.at(cell)) << ")\n";
 			int x1 = x*cell_width;
 			int y1 = y*cell_height;
 			int x2 = (x+1)*cell_width;
 			int y2 = (y+1)*cell_height;
-			//cout << "rectangle(" << x1 << "," << y1 << "," << x2 << "," << y2 << ")\n";
 			draw_sdl_rectangle(renderer,x1,y1,x2,y2,colormap(cell));
 			x++;
 		}
@@ -251,62 +242,13 @@ template <class EnumType> void draw_cells(SDL_Renderer* renderer, function<RGBCo
 	}
 }
 
-class sample_grid_drawer
-{
-	vector<vector<int>> grid;
-	map<int,RGBColor> gridcolors;
-	function<RGBColor(int)> colorfunction;
-	public:
-	sample_grid_drawer()
-	{
-		grid.push_back(vector<int>({0,1,0}));
-		grid.push_back(vector<int>({1,2,1}));
-		grid.push_back(vector<int>({5,4,3,2,1,0}));
-		gridcolors[0] = make_tuple(0xFF,0,0);
-		gridcolors[1] = make_tuple(0,0xFF,0);
-		gridcolors[2] = make_tuple(0,0,0xFF);
-		gridcolors[3] = make_tuple(0xFF,0,0xFF);
-		gridcolors[4] = make_tuple(0,0xFF,0xFF);
-		gridcolors[5] = make_tuple(0xFF,0xFF,0);
-		colorfunction = map_to_function(gridcolors);
-	}
-	void draw(SDL_Renderer* r)
-	{
-		draw_cells(r,colorfunction,grid);
-	}
-};
-
-class sample_grid_drawer2
-{
-	vector<vector<RGBColor>> grid;
-	function<RGBColor(RGBColor)> identity;
-	public:
-	sample_grid_drawer2(int numrows, int numcolumns)
-	{
-		for(int y=0;y < numcolumns;y++)
-		{
-			vector<RGBColor> tmp;
-			for(int x=0;x<numrows;x++)
-			{
-				tmp.push_back(make_tuple(random(0xFF),random(0xFF),random(0xFF)));
-			}
-			grid.push_back(tmp);
-		}
-		identity = [](RGBColor col){return col;};
-	}
-	void draw(SDL_Renderer* r)
-	{
-		draw_cells(r,identity,grid);
-	}
-};
-
 class simulation_drawer
 {
 	Model m;
 	map<Model::Cell,RGBColor> colormap;
 	//function<RGBColor(Model::Cell)> colorfn;
 	public:
-	simulation_drawer()	: m(128,1.0,1.0/5.0,1.0/5.0,1.0/25.0)
+	simulation_drawer()	: m(128, 0.04, 0.7, 0.15, 0.8)
 	{
 		colormap[Model::NONE] = make_tuple(0xFF,0xFF,0xFF);
 		colormap[Model::PREY] = make_tuple(0,0xFF,0);
@@ -324,7 +266,7 @@ class simulation_drawer
 };
 
 // SDL initialization code adapted from wiki.libsdl.org
-int main(int argc, char* argv[])
+int main()
 {
 	try
 	{
@@ -332,10 +274,7 @@ int main(int argc, char* argv[])
 		RAII_Wrapper<SDL_Window> main_window(bind(SDL_CreateWindow,"Ecology simulation",0,0,WINDOW_WIDTH,WINDOW_HEIGHT,0),SDL_DestroyWindow,"Error creating the window: ");
 		RAII_Wrapper<SDL_Renderer> main_window_renderer(bind(SDL_CreateRenderer,main_window.get(),-1,0),SDL_DestroyRenderer,"Error getting the window's renderer: ");
 		event_loop el(main_window,main_window_renderer);
-		//el.addHandler([](SDL_Event* e){cout << "Received an event of type " << e->type << ".\n";});
 		mouse_drawing md;
-		//function<void()> helloWorldCallback = [](){ cout << "Hello, world\n";};
-		//el.addTimerEvent(1000,&helloWorldCallback);
 		el.addHandler(SDL_MOUSEMOTION,method_closure(md,&mouse_drawing::receive_mouse_input));
 		el.addDrawer(&clear_screen<0xFF,0xFF,0xFF,0xFF>);
 		el.addDrawer(method_closure(md,&mouse_drawing::draw));
