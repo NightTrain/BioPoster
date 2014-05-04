@@ -1,6 +1,7 @@
 #include <cmath>
 #include <ctime>
 #include <limits>
+#include <iostream>
 #include <utility>
 
 #include "model.h"
@@ -35,17 +36,21 @@ Model::Model(size_type size, float alpha, float beta, float gamma,
              float delta):
         world(size, Row(size, NONE)),
         alpha(alpha), beta(beta), gamma(gamma), delta(delta),
-        gen(time(nullptr)), neighbor(0, 7), event(0.0, 1.0)
+        gen(time(nullptr)), neighbor(0, 7), event(0.0, 1.0),
+        num_prey(0), num_pred(0), dt(0)
 {
         // Randomly add prey and predators. TODO: Replace this with
         // something more reasonable.
         for (size_type y = 0; y < size; ++y)
                 for (size_type x = 0; x < size; ++x) {
                         float add = event(gen);
-                        if (add < 0.2)
+                        if (add < 0.2) {
                                 world[y][x] = PREY;
-                        else if (add < 0.22)
+                                ++num_prey;
+                        } else if (add < 0.22) {
                                 world[y][x] = PRED;
+                                ++num_pred;
+                        }
                 }
 }
 
@@ -61,11 +66,13 @@ Model::Cell &Model::choose_neighbor(size_type x, size_type y)
 // Moore neighborhood cell.
 void Model::tick()
 {
+        ++dt;
         for (size_type y = 0; y < world.size(); ++y)
                 for (size_type x = 0; x < world.size(); ++x) {
                         Cell &current = world[y][x], &target = choose_neighbor(x, y);
                         (this->*INTERACT[current][target])(current, target);
                 }
+        cout << dt << ' ' << num_prey << ' ' << num_pred << endl;
 }
 
 // Two cells interact according to the rules in the NOTES file. Every cell
@@ -84,27 +91,35 @@ void Model::interact_none_preypred(Cell &current, Cell &neighbor)
 void Model::interact_prey_none(Cell &current, Cell &neighbor)
 {
         (void)current;
-        if (event(gen) < alpha)
+        if (event(gen) < alpha) {
                 neighbor = PREY;
+                ++num_prey;
+        }
 }
 
 void Model::interact_prey_pred(Cell &current, Cell &neighbor)
 {
-        if (event(gen) < beta)
-        {
+        if (event(gen) < beta) {
                 current = NONE;
-                if (event(gen) < delta)
+                --num_prey;
+                if (event(gen) < delta) {
                         current = PRED;
+                        ++num_pred;
+                }
         }
-        if (event(gen) < gamma)
+        if (event(gen) < gamma) {
                 neighbor = NONE;
+                --num_pred;
+        }
 }
 
 void Model::interact_pred_nonepred(Cell &current, Cell &neighbor)
 {
         (void)neighbor;
-        if (event(gen) < gamma)
+        if (event(gen) < gamma) {
                 current = NONE;
+                --num_pred;
+        }
 }
 
 void Model::interact_pred_prey(Cell &current, Cell &neighbor)

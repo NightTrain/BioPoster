@@ -39,6 +39,8 @@ private:
 	std::uniform_int_distribution<unsigned int> neighbor;
 	std::uniform_real_distribution<float> event;
 
+	unsigned long num_prey, num_pred, dt;
+
 	Cell &choose_neighbor(size_type x, size_type y);
 
 	// Nothing happens . . .
