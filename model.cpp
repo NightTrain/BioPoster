@@ -14,20 +14,20 @@ static_assert(numeric_limits<Model::Row::size_type>::max()
               "insufficient vector size type");
 
 const Model::interactor Model::INTERACT[CELL_NUM][CELL_NUM] = {
-	[NONE] = {
-		[NONE] = &Model::interact_null,
-		[PREY] = &Model::interact_none_preypred,
-		[PRED] = &Model::interact_none_preypred
+	{
+		&Model::interact_null,
+		&Model::interact_none_preypred,
+		&Model::interact_none_preypred
 	},
-	[PREY] = {
-		[NONE] = &Model::interact_prey_none,
-		[PREY] = &Model::interact_null,
-		[PRED] = &Model::interact_prey_pred
+	{
+		&Model::interact_prey_none,
+		&Model::interact_null,
+		&Model::interact_prey_pred
 	},
-	[PRED] = {
-		[NONE] = &Model::interact_pred_nonepred,
-		[PREY] = &Model::interact_pred_prey,
-		[PRED] = &Model::interact_pred_nonepred
+	{
+		&Model::interact_pred_nonepred,
+		&Model::interact_pred_prey,
+		&Model::interact_pred_nonepred
 	}
 };
 
